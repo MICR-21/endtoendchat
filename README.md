@@ -33,9 +33,12 @@ To install and run the project:
    git clone https://github.com/yourusername/end-to-end-chat
    cd end-to-end-chat
 2.**Install Dependencies**: 
+   ```bash
   npm install
 3. **Run Test**:
+   ```bash
   npm test
 4. **Linting**:
+   ```bash
   npm run lint-fix
 
