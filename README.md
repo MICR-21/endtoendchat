@@ -1,4 +1,4 @@
-# End-to-End Encrypted Messenger Project
+# End-to-End Encrypted Chat Project
 
 This project implements an end-to-end encrypted messenger application using the Double Ratchet algorithm for secure communication. The project includes certificate-based authentication and a mechanism for government surveillance, as per the project’s requirements.
 
