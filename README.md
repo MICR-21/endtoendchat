@@ -33,12 +33,12 @@ To install and run the project:
 git clone https://github.com/yourusername/endtoendchat
 cd w24_proj2_source
 ```
-2.**Install Dependencies**: 
-   ```bash
+2. **Install Dependencies**: 
+  ```bash
   npm install
    ```
 
-3.**Run Test**:
+3. **Run Test**:
 ```bash
 npm test
 ```
