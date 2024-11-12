@@ -29,16 +29,22 @@ This application simulates secure message communication using end-to-end encrypt
 To install and run the project:
 
 1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/yourusername/end-to-end-chat
-   cd end-to-end-chat
+```bash
+git clone https://github.com/yourusername/end-to-end-chat
+cd w24_proj2_source
+```
 2.**Install Dependencies**: 
    ```bash
   npm install
-3. **Run Test**:
-   ```bash
-  npm test
+   ```
+
+3.**Run Test**:
+```bash
+npm test
+```
+
 4. **Linting**:
-   ```bash
-  npm run lint-fix
+```bash
+npm run lint-fix
+```
 
