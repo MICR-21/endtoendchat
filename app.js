@@ -23,12 +23,16 @@ const messageLog = blessed.box({
     content: '',
     tags: true,
     border: { type: 'line' },
-    style: { 
+    style: {
         border: { fg: 'green' },
-        scrollbar: { bg: 'blue' }
+        scrollbar: { bg: 'blue' },
     },
     scrollable: true,
     alwaysScroll: true,
+    scrollbar: {
+        ch: ' ',
+        track: { bg: 'cyan' },
+    },
 });
 
 const input = blessed.textbox({
@@ -47,40 +51,43 @@ screen.append(input);
 // Focus input box
 input.focus();
 
-// Send messages
+// Event listener for input
 input.key('enter', () => {
     const message = input.getValue().trim();
     if (message && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ from: username, message }));
-        // Immediately display sent message
-        messageLog.setContent(`${messageLog.content}\n{bold}${username} (You):{/bold} ${message}`);
+        // Immediately display the sent message
+        appendToMessageLog(`{bold}${username} (You):{/bold} ${message}`);
         input.clearValue();
+        input.focus(); // Ensure focus remains on the input box
         screen.render();
     }
 });
 
+// Append messages to the log safely
+const appendToMessageLog = (message) => {
+    messageLog.setContent(`${messageLog.content}\n${message}`);
+    messageLog.setScrollPerc(100); // Auto-scroll to the bottom
+    screen.render();
+};
+
 // Handle incoming WebSocket messages
 ws.on('message', (data) => {
     const parsed = JSON.parse(data);
-    // Append incoming messages directly
-    messageLog.setContent(`${messageLog.content}\n{bold}${parsed.from}:{/bold} ${parsed.message}`);
-    screen.render();
+    appendToMessageLog(`{bold}${parsed.from}:{/bold} ${parsed.message}`);
 });
 
-// WebSocket connection handling
+// WebSocket connection events
 ws.on('open', () => {
-    messageLog.setContent(`Connected as ${username}`);
-    screen.render();
+    appendToMessageLog(`{green-fg}Connected as ${username}{/green-fg}`);
 });
 
-// WebSocket error handling
 ws.on('error', (err) => {
-    messageLog.setContent(`{red-fg}Error: ${err.message}{/red-fg}`);
-    screen.render();
+    appendToMessageLog(`{red-fg}Error: ${err.message}{/red-fg}`);
 });
 
 // Exit handling
 screen.key(['escape', 'C-c'], () => process.exit(0));
 
-// Ensure screen can be re-rendered
+// Initial render
 screen.render();
