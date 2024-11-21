@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Secure Chat</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                display: flex;
+                height: 100vh;
+                margin: 0;
+            }
+            #sidebar {
+                width: 20%;
+                background: #f0f0f0;
+                border-right: 1px solid #ccc;
+                padding: 10px;
+                overflow-y: auto;
+            }
+            #chat {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+            }
+            #messages {
+                flex: 1;
+                padding: 10px;
+                overflow-y: auto;
+                border-bottom: 1px solid #ccc;
+            }
+            #input {
+                display: flex;
+                padding: 10px;
+            }
+            #input input {
+                flex: 1;
+                padding: 10px;
+            }
+            #input button {
+                margin-left: 5px;
+            }
+            li {
+                cursor: pointer;
+            }
+            li:hover {
+                background-color: #ddd;
+            }
+            li.selected {
+                background-color: #bbb;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="sidebar">
+            <h3>Users</h3>
+            <ul id="userList"></ul>
+        </div>
+        <div id="chat">
+            <div id="messages"></div>
+            <div id="input">
+                <input
+                    type="text"
+                    id="messageInput"
+                    placeholder="Type a message..."
+                />
+                <button id="sendButton">Send</button>
+            </div>
+        </div>
+
+        <script src="http://localhost:3000/socket.io/socket.io.js"></script>
+        <script>
+            const socket = io("http://localhost:3000");
+            let username = prompt("Enter your name:");
+            let selectedUser = null;
+
+            const userList = document.getElementById("userList");
+            const messagesDiv = document.getElementById("messages");
+            const messageInput = document.getElementById("messageInput");
+            const sendButton = document.getElementById("sendButton");
+
+            socket.emit("register", username);
+
+            socket.on("userList", (users) => {
+                userList.innerHTML = "";
+                users.forEach((user) => {
+                    if (user !== username) {
+                        const li = document.createElement("li");
+                        li.textContent = user;
+                        li.addEventListener("click", () => selectUser(user));
+                        userList.appendChild(li);
+                    }
+                });
+            });
+
+            socket.on("userJoined", (user) => {
+                if (user !== username) {
+                    const li = document.createElement("li");
+                    li.textContent = user;
+                    li.addEventListener("click", () => selectUser(user));
+                    userList.appendChild(li);
+                }
+            });
+
+            socket.on("receiveMessage", ({ from, message }) => {
+                const messageElement = document.createElement("div");
+                messageElement.textContent = `${from}: ${message}`;
+                messagesDiv.appendChild(messageElement);
+            });
+
+            sendButton.addEventListener("click", () => {
+                const message = messageInput.value;
+                if (selectedUser) {
+                    socket.emit("sendMessage", {
+                        from: username,
+                        to: selectedUser,
+                        message,
+                    });
+                    messageInput.value = "";
+                } else {
+                    alert("Select a user to chat with.");
+                }
+            });
+
+            function selectUser(user) {
+                selectedUser = user;
+                socket.emit("requestCertificate", { from: username, to: user });
+            }
+        </script>
+    </body>
+</html>
