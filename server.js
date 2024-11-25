@@ -19,6 +19,9 @@ const io = socketIo(server, {
         methods: ["GET", "POST"],
     },
 });
+const fs = require("fs");
+const certificatesFile = "certificates.json";
+const connectionsFile = "connections.json";
 
 app.use(cors({ origin: "http://127.0.0.1:5500" }));
 app.use(express.static("public")); // Serve static files from the "public" directory
@@ -68,31 +71,44 @@ io.on("connection", (socket) => {
     // Handle user registration
     socket.on("register", async (username) => {
         if (users[username]) {
-            socket.emit("error", "Username is already taken.");
+            // Reconnection scenario
+            console.log(`User ${username} reconnected.`);
+            users[username].socket = socket; // Update the socket reference
+            socket.emit("registered", {
+                cert: users[username].cert,
+                certSignature: users[username].certSignature,
+            });
+
+            // Send the user list to the reconnected user
+            const userList = Object.keys(users).filter(
+                (user) => user !== username
+            );
+            socket.emit("userList", userList);
             return;
         }
 
-        // Initialize a new MessengerClient for the user
+        // Handle first-time registration
+        console.log(`Registering new user: ${username}`);
         const client = new MessengerClient(caKeyPair.pub, govKeyPair.pub);
         const cert = await client.generateCertificate(username);
         const certSignature = await signWithECDSA(
             caKeyPair.sec,
-            stringifyCert(cert)
+            JSON.stringify(cert)
         );
 
         users[username] = { socket, client, cert, certSignature };
 
-        // Send certificate and success confirmation to the registering user
+        // Send certificate and success confirmation
         socket.emit("registered", { cert, certSignature });
 
-        // Notify other users about the new user
+        // Notify other users
         for (const user in users) {
             if (user !== username) {
                 users[user].socket.emit("userJoined", username);
             }
         }
-        logConnection(username);
-        // Send the current user list to the new user (excluding themselves)
+
+        // Send the current user list
         const userList = Object.keys(users).filter((user) => user !== username);
         socket.emit("userList", userList);
         console.log("User registered:", username);
@@ -111,9 +127,6 @@ io.on("connection", (socket) => {
             recipient.cert,
             recipient.certSignature
         );
-        const { cert, certSignature } = users[to];
-        logCertificateExchange(from, to, cert);
-        socket.emit("certificate", { to, cert, certSignature });
     });
 
     // Handle sending messages
@@ -125,6 +138,7 @@ io.on("connection", (socket) => {
             }
 
             const recipient = users[to];
+            const sender = users[from];
             const senderClient = users[from].client;
 
             // Ensure certificates are exchanged
@@ -155,7 +169,6 @@ io.on("connection", (socket) => {
                 to,
                 message
             );
-            logMessage(from, to, message);
             console.log(
                 `Encrypted message sent from ${from} to ${to}:`,
                 encryptedMessage
@@ -173,8 +186,8 @@ io.on("connection", (socket) => {
             if (!recipientClient.certs[from]) {
                 console.log(`Exchanging certificates for ${to} and ${from}...`);
                 await recipientClient.receiveCertificate(
-                    senderClient.cert,
-                    senderClient.certSignature
+                    sender.cert,
+                    sender.certSignature
                 );
             }
 
@@ -243,40 +256,6 @@ io.on("connection", (socket) => {
     });
 });
 
-const certificatesFile = "certificates.json";
-
-// Log certificate exchanges
-function logCertificateExchange(from, to, certificate) {
-    const timestamp = new Date().toISOString();
-    const logEntry = { from, to, certificate, signedAt: timestamp };
-    const data = JSON.parse(fs.readFileSync(certificatesFile, "utf-8") || "{}");
-    data.exchanges = data.exchanges || [];
-    data.exchanges.push(logEntry);
-    fs.writeFileSync(certificatesFile, JSON.stringify(data, null, 4));
-}
-
-const connectionsFile = "connections.json";
-
-// Helper function to log connections
-function logConnection(username) {
-    const timestamp = new Date().toISOString();
-    const logEntry = { user: username, connectedAt: timestamp };
-    const data = JSON.parse(fs.readFileSync(connectionsFile, "utf-8") || "{}");
-    data.connections = data.connections || [];
-    data.connections.push(logEntry);
-    fs.writeFileSync(connectionsFile, JSON.stringify(data, null, 4));
-}
-
-// Log messages between users
-function logMessage(from, to, message) {
-    const data = JSON.parse(fs.readFileSync(connectionsFile, "utf-8") || "{}");
-    const conversationKey = `${from}_${to}`;
-    data.conversations = data.conversations || {};
-    data.conversations[conversationKey] = data.conversations[conversationKey] || [];
-    data.conversations[conversationKey].push({ from, to, message });
-    fs.writeFileSync(connectionsFile, JSON.stringify(data, null, 4));
-}
-const fs = require("fs");
 // Start the server
 const PORT = 3000;
 server.listen(PORT, () => {

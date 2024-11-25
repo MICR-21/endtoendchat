@@ -47,13 +47,12 @@
                 background-color: #ddd;
             }
             li.selected {
-                background-color: #007BFF; /* Blue background */
-                color: #ddd;             /* White text */
-                font-weight: bold;        /* Bold text */
-                border-radius: 4px;       /* Optional: Rounded corners */
+                background-color: #007bff; /* Blue background */
+                color: #ddd; /* White text */
+                font-weight: bold; /* Bold text */
+                border-radius: 4px; /* Optional: Rounded corners */
                 padding: 5px;
             }
-                       
         </style>
     </head>
     <body>
@@ -76,54 +75,75 @@
         <script src="http://localhost:3000/socket.io/socket.io.js"></script>
         <script>
             const socket = io("http://localhost:3000");
-            let username = prompt("Enter your name:");
+        
+            // Prompt for username once and store it
+            let username = localStorage.getItem("username");
+            if (!username) {
+                username = prompt("Enter your name:");
+                if (username) {
+                    localStorage.setItem("username", username);
+                } else {
+                    alert("Username is required to proceed.");
+                    throw new Error("Username not provided.");
+                }
+            }
+        
             let selectedUser = null;
-
+        
             const userList = document.getElementById("userList");
             const messagesDiv = document.getElementById("messages");
             const messageInput = document.getElementById("messageInput");
             const sendButton = document.getElementById("sendButton");
-
+        
+            // Emit the registration event
             socket.emit("register", username);
-
+        
             socket.on("userList", (users) => {
                 userList.innerHTML = "";
                 users.forEach((user) => {
                     if (user !== username) {
                         const li = document.createElement("li");
                         li.textContent = user;
-                        li.addEventListener("click", () =>
-                            selectUser(user, li)
-                        );
+        
+                        // Prevent default behavior and select user
+                        li.addEventListener("click", (event) => {
+                            event.preventDefault();
+                            selectUser(user, li);
+                        });
+        
                         userList.appendChild(li);
                     }
                 });
             });
-
+        
             socket.on("userJoined", (user) => {
                 if (user !== username) {
                     const li = document.createElement("li");
                     li.textContent = user;
-                    li.addEventListener("click", () => selectUser(user));
+        
+                    // Prevent default behavior and select user
+                    li.addEventListener("click", (event) => {
+                        event.preventDefault();
+                        selectUser(user, li);
+                    });
+        
                     userList.appendChild(li);
                 }
             });
-
+        
             socket.on("receiveMessage", ({ from, message }) => {
                 const messageElement = document.createElement("div");
                 messageElement.textContent = `${from}: ${message}`;
                 messagesDiv.appendChild(messageElement);
             });
-
+        
             sendButton.addEventListener("click", () => {
                 const message = messageInput.value;
                 if (selectedUser && message.trim() !== "") {
-                    // Display the sent message on the sender's side
                     const messageElement = document.createElement("div");
                     messageElement.textContent = `You (to ${selectedUser}): ${message}`;
                     messagesDiv.appendChild(messageElement);
-
-                    // Send the message via Socket.IO
+        
                     socket.emit("sendMessage", {
                         from: username,
                         to: selectedUser,
@@ -134,23 +154,25 @@
                     alert("Select a user to chat with.");
                 }
             });
-
+        
             function selectUser(user, element) {
-                console.log(`Selecting user: ${user}`); // Log selected user
-
+                if (!element) {
+                    console.error("Element is undefined in selectUser");
+                    return;
+                }
+        
                 selectedUser = user;
-
+        
+                // Remove the "selected" class from all user list items
                 const userElements = document.querySelectorAll("#userList li");
-                userElements.forEach((el) => {
-                    console.log(`Removing selected from: ${el.textContent}`); // Debug removal
-                    el.classList.remove("selected");
-                });
-
-                console.log(`Adding selected to: ${element.textContent}`); // Debug addition
+                userElements.forEach((el) => el.classList.remove("selected"));
+        
+                // Add the "selected" class to the clicked element
                 element.classList.add("selected");
-
+        
                 socket.emit("requestCertificate", { from: username, to: user });
             }
         </script>
+        
     </body>
 </html>
